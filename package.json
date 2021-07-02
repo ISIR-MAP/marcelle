@@ -48,7 +48,8 @@
     "storybook:dev": "start-storybook -p 6006",
     "storybook:build": "build-storybook",
     "lint": "eslint src",
-    "clean": "rm -rf dist types examples/dist"
+    "clean": "rm -rf dist types examples/dist",
+    "prepare": "npm run build"
   },
   "devDependencies": {
     "@babel/core": "^7.14.0",

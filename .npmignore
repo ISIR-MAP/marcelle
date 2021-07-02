@@ -2,7 +2,6 @@
 .vscode
 docs
 examples
-node_modules
 src
 .eslintignore
 .eslintrc.js
