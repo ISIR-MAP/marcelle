@@ -16,7 +16,7 @@
   export let author: string;
   export let dashboards: Record<string, DashboardPage> = {};
   export let settings: DashboardSettings;
-  export let page: Stream<string>;
+  export let page: Stream<{ name: string; slug: string }>;
   export let closable: boolean;
 
   let showApp = false;
@@ -64,7 +64,7 @@
       router.route('settings', () => {
         showSettings = true;
         if (currentDashboard) dashboards[currentDashboard].destroy();
-        page.set('settings');
+        page.set({ name: 'settings', slug: 'settings' });
       });
       dashboardSlugs.forEach((slug, i) => {
         router.route(slug, () => {
@@ -72,7 +72,10 @@
           if (currentDashboard === dashboardNames[i]) return;
           if (currentDashboard) dashboards[currentDashboard].destroy();
           currentDashboard = dashboardNames[i];
-          page.set(slug === '' ? string2slug(dashboardNames[0]) : slug);
+          page.set({
+            name: currentDashboard,
+            slug: slug === '' ? string2slug(dashboardNames[0]) : slug, // todo: dashboardNames[i], rather?
+          });
         });
       });
     } catch (error) {
@@ -80,7 +83,6 @@
       console.log('Could not enable router', error);
     }
   });
-
 </script>
 
 <svelte:head>
@@ -127,5 +129,4 @@
       @apply flex-row;
     }
   }
-
 </style>

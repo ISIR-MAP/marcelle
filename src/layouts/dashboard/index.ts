@@ -15,7 +15,7 @@ export class Dashboard {
   settings = new DashboardSettings();
 
   $active = new Stream(false as boolean, true);
-  $page = new Stream('', true);
+  $page = new Stream({ name: '', slug: '' }, true);
 
   title: string;
   author: string;
