@@ -186,17 +186,44 @@ export class Webcam extends Component {
     return this.#thumbnailCanvas.toDataURL('image/jpeg');
   }
 
-  captureImage(): ImageData {
-    if (!this.$ready.value) return null;
+  /**
+   *
+   * @returns Frame of the webcam actually captured.
+   */
+  getCapturedFrame() {
+    // if (!this.$ready.value) return null;
+    var frame: {
+      dx: number;
+      dy: number;
+      dw: number;
+      dh: number;
+    };
     const hRatio = this.#height / this.#webcamHeight;
     const wRatio = this.#width / this.#webcamWidth;
     if (hRatio > wRatio) {
       const w = (this.#height * this.#webcamWidth) / this.#webcamHeight;
-      this.#captureCtx.drawImage(this.#videoElement, this.#width / 2 - w / 2, 0, w, this.#height);
+      frame = {
+        dx: this.#width / 2 - w / 2,
+        dy: 0,
+        dw: w,
+        dh: this.#height,
+      };
     } else {
       const h = (this.#width * this.#webcamHeight) / this.#webcamWidth;
-      this.#captureCtx.drawImage(this.#videoElement, 0, this.#height / 2 - h / 2, this.#width, h);
+      frame = {
+        dx: 0,
+        dy: this.#height / 2 - h / 2,
+        dw: this.#width,
+        dh: h,
+      };
     }
+    return frame;
+  }
+
+  captureImage(): ImageData {
+    if (!this.$ready.value) return null;
+    const frame = this.getCapturedFrame();
+    this.#captureCtx.drawImage(this.#videoElement, frame.dx, frame.dy, frame.dw, frame.dh);
     return this.#captureCtx.getImageData(0, 0, this.#width, this.#height);
   }
 }
