@@ -25,7 +25,7 @@
       "import": "./dist/marcelle.esm.js",
       "default": "./dist/marcelle.esm.js"
     },
-    "./dist/marcelle.css": "./dist/marcelle.css",
+    "./marcelle.css": "./dist/marcelle.css",
     "./ui": "./dist/ui.js",
     "./ui.css": "./dist/ui.css"
   },
