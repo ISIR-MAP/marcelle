@@ -1,21 +1,26 @@
 <script lang="ts">
-  import { createEventDispatcher } from 'svelte';
+  import { createEventDispatcher, onMount } from 'svelte';
   import Button from '../../ui/components/Button.svelte';
+  import Router from './routie';
+  import { Stream } from '../../core';
 
   export let title: string;
   export let items: { [slug: string]: string };
   export let current: string;
   export let closable: boolean;
   export let showSettings = false;
+  export let page: Stream<{ slug: string; name: string }>;
 
+  let router: Router;
   const dispatch = createEventDispatcher();
+
+  onMount(() => {
+    router = new Router();
+  });
 
   function toggleSettings() {
     if (showSettings) {
-      window.location.href =
-        window.location.href.split('#')[0] +
-        '#' +
-        Object.keys(items)[Object.values(items).indexOf(current)];
+      window.location.href = window.location.href.split('#')[0] + '#' + $page.slug;
     } else {
       window.location.href = window.location.href.split('#')[0] + '#settings';
     }
@@ -27,6 +32,12 @@
     }, 400);
   }
 
+  function goToPage(slug: string) {
+    return () => {
+      router.navigate(slug);
+      page.set({ slug, name: items[slug] });
+    };
+  }
 </script>
 
 <header class="bg-white text-gray-700 body-font">
@@ -40,9 +51,10 @@
     <nav class="flex items-stretch justify-start flex-wrap text-base flex-grow mx-4">
       {#each Object.entries(items) as [slug, name], index}
         <a
-          href={`#${slug}`}
+          href="#/"
           class:active={!showSettings && current === name}
           class="ml-2 mr-5 flex items-center hover:text-black border-solid border-0 border-b-2 border-transparent"
+          on:click={goToPage(slug)}
         >
           {name}
         </a>
@@ -98,5 +110,4 @@
   .active {
     @apply text-gray-900 border-green-500;
   }
-
 </style>

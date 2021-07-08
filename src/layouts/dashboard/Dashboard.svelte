@@ -97,6 +97,7 @@
         items={dashboardSlugs.reduce((o, x, i) => ({ ...o, [x]: dashboardNames[i] }), {})}
         current={currentDashboard}
         {showSettings}
+        {page}
         {closable}
         on:quit={quit}
       />
