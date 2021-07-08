@@ -222,6 +222,8 @@ export class Stream<T> {
     return new Stream(most.combine(f, stream1, this));
   }
 
+  // fixme: This does not work with streams of different types:
+  // e.g. : [Stream<number>, Stream<string>]
   static combineArray<Args extends unknown[], R>(
     f: (...args: Args) => R,
     streams: ToStreamsArray<Args>,

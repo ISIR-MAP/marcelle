@@ -50,14 +50,13 @@
     </a>
     <nav class="flex items-stretch justify-start flex-wrap text-base flex-grow mx-4">
       {#each Object.entries(items) as [slug, name], index}
-        <a
-          href="#/"
+        <p
           class:active={!showSettings && current === name}
           class="ml-2 mr-5 flex items-center hover:text-black border-solid border-0 border-b-2 border-transparent"
           on:click={goToPage(slug)}
         >
           {name}
-        </a>
+        </p>
       {/each}
     </nav>
     <div class="flex items-center">
@@ -102,7 +101,8 @@
 </header>
 
 <style lang="postcss">
-  a {
+  a,
+  p {
     color: inherit;
     text-decoration: inherit;
   }
