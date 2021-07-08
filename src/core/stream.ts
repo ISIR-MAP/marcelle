@@ -20,6 +20,14 @@ export function isStream<T>(s: Stream<T> | T): s is Stream<T> {
   return (s as Stream<T>).id !== undefined && (s as Stream<T>).run !== undefined;
 }
 
+// taken from: https://github.com/mostjs/core/blob/master/packages/core/src/combinator/variadic.ts
+type ToStreamsArray<A extends ArrayLike<unknown>> = {
+  [K in keyof A]: Stream<A[K]>;
+};
+// taken from: https://github.com/mostjs/core/blob/master/packages/core/src/combinator/merge.ts
+type Value<S> = S extends MostStream<infer A> ? A : never;
+type MergeArray<S extends ReadonlyArray<Stream<unknown>>> = Value<S[number]>;
+
 export class Stream<T> {
   static nextId = 0;
   static numActive = 0;
@@ -179,11 +187,11 @@ export class Stream<T> {
   }
 
   switchLatest<U>(): Stream<U> {
-    return new Stream(most.switchLatest((this as unknown) as Stream<Stream<U>>));
+    return new Stream(most.switchLatest(this as unknown as Stream<Stream<U>>));
   }
 
   join<U>(): Stream<U> {
-    return new Stream(most.join((this as unknown) as Stream<Stream<U>>));
+    return new Stream(most.join(this as unknown as Stream<Stream<U>>));
   }
 
   chain<B>(f: (value: T) => Stream<B>): Stream<B> {
@@ -195,7 +203,7 @@ export class Stream<T> {
   }
 
   mergeConcurrently<U>(concurrency: number): Stream<U> {
-    return new Stream(most.mergeConcurrently(concurrency, (this as unknown) as Stream<Stream<U>>));
+    return new Stream(most.mergeConcurrently(concurrency, this as unknown as Stream<Stream<U>>));
   }
 
   mergeMapConcurrently<B>(f: (a: T) => Stream<B>, concurrency: number): Stream<B> {
@@ -206,12 +214,30 @@ export class Stream<T> {
     return new Stream(most.merge(stream1, this));
   }
 
+  static mergeArray<S extends ReadonlyArray<Stream<unknown>>>(streams: S): Stream<MergeArray<S>> {
+    return new Stream(most.mergeArray(streams));
+  }
+
   combine<A, R>(f: (a: A, b: T) => R, stream1: Stream<A>): Stream<R> {
     return new Stream(most.combine(f, stream1, this));
   }
 
+  static combineArray<Args extends unknown[], R>(
+    f: (...args: Args) => R,
+    streams: ToStreamsArray<Args>,
+  ): Stream<R> {
+    return new Stream(most.combineArray(f, streams));
+  }
+
   zip<A, R>(f: (a: A, b: T) => R, stream1: Stream<A>): Stream<R> {
     return new Stream(most.zip(f, stream1, this));
+  }
+
+  static zipArray<Args extends unknown[], R>(
+    f: (...args: Args) => R,
+    streams: ToStreamsArray<Args>,
+  ): Stream<R> {
+    return new Stream(most.zipArray(f, streams));
   }
 
   resample<B>(sampler: Stream<B>): Stream<T> {
@@ -291,7 +317,7 @@ export class Stream<T> {
   }
 
   awaitPromises<A>(): Stream<A> {
-    return new Stream(most.awaitPromises((this as unknown) as Stream<Promise<A>>));
+    return new Stream(most.awaitPromises(this as unknown as Stream<Promise<A>>));
   }
 
   recoverWith<A, E extends Error>(f: (error: E) => Stream<A>): Stream<T | A> {
