@@ -1,7 +1,6 @@
 <script lang="ts">
-  import { createEventDispatcher, onMount } from 'svelte';
+  import { createEventDispatcher } from 'svelte';
   import Button from '../../ui/components/Button.svelte';
-  import Router from './routie';
   import { Stream } from '../../core';
 
   export let title: string;
@@ -11,18 +10,15 @@
   export let showSettings = false;
   export let page: Stream<{ slug: string; name: string }>;
 
-  let router: Router;
   const dispatch = createEventDispatcher();
-
-  onMount(() => {
-    router = new Router();
-  });
 
   function toggleSettings() {
     if (showSettings) {
-      window.location.href = window.location.href.split('#')[0] + '#' + $page.slug;
+      // window.location.href = window.location.href.split('#')[0] + '#' + $page.slug;
+      page.set({ slug: current, name: items[current] });
     } else {
-      window.location.href = window.location.href.split('#')[0] + '#settings';
+      // window.location.href = window.location.href.split('#')[0] + '#settings';
+      page.set({ slug: 'settings', name: 'settings' });
     }
   }
 
@@ -32,9 +28,8 @@
     }, 400);
   }
 
-  function goToPage(slug: string) {
-    return () => {
-      router.navigate(slug);
+  export function goToPage(slug: string) {
+    return (): void => {
       page.set({ slug, name: items[slug] });
     };
   }

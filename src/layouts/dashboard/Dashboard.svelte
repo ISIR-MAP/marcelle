@@ -77,6 +77,10 @@
             slug: slug === '' ? string2slug(dashboardNames[0]) : slug, // todo: dashboardNames[i], rather?
           });
         });
+        // route when '$page' is set.
+        page.subscribe((p) => {
+          router.navigate(p.slug);
+        });
       });
     } catch (error) {
       // eslint-disable-next-line no-console
