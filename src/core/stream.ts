@@ -21,12 +21,12 @@ export function isStream<T>(s: Stream<T> | T): s is Stream<T> {
 }
 
 // taken from: https://github.com/mostjs/core/blob/master/packages/core/src/combinator/variadic.ts
-type ToStreamsArray<A extends ArrayLike<unknown>> = {
+type ToStreamsArray<A extends ArrayLike<any>> = {
   [K in keyof A]: Stream<A[K]>;
 };
 // taken from: https://github.com/mostjs/core/blob/master/packages/core/src/combinator/merge.ts
 type Value<S> = S extends MostStream<infer A> ? A : never;
-type MergeArray<S extends ReadonlyArray<Stream<unknown>>> = Value<S[number]>;
+type MergeArray<S extends ReadonlyArray<Stream<any>>> = Value<S[number]>;
 
 export class Stream<T> {
   static nextId = 0;
