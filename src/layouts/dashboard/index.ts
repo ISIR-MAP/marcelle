@@ -10,12 +10,12 @@ export interface DashboardOptions {
 }
 
 export class Dashboard {
-  panels: Record<string, DashboardPage> = {};
+  pages: Record<string, DashboardPage> = {};
   app?: DashboardComponent;
   settings = new DashboardSettings();
 
   $active = new Stream(false as boolean, true);
-  $page = new Stream({ name: '', slug: '' }, true);
+  $currentPageName = new Stream('', true);
 
   title: string;
   author: string;
@@ -32,10 +32,10 @@ export class Dashboard {
   }
 
   page(name: string, showSidebar?: boolean): DashboardPage {
-    if (!Object.keys(this.panels).includes(name)) {
-      this.panels[name] = new DashboardPage(name, showSidebar);
+    if (!Object.keys(this.pages).includes(name)) {
+      this.pages[name] = new DashboardPage(name, showSidebar);
     }
-    return this.panels[name];
+    return this.pages[name];
   }
 
   show(): void {
@@ -44,9 +44,9 @@ export class Dashboard {
       props: {
         title: this.title,
         author: this.author,
-        dashboards: this.panels,
+        pages: this.pages,
         settings: this.settings,
-        page: this.$page,
+        currentPageName: this.$currentPageName,
         closable: this.closable,
       },
     });
@@ -54,7 +54,7 @@ export class Dashboard {
     this.app.$on('quit', () => {
       this.$active.set(false);
       this.app?.$destroy();
-      for (const panel of Object.values(this.panels)) {
+      for (const panel of Object.values(this.pages)) {
         panel.destroy();
       }
       this.app = undefined;

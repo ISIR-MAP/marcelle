@@ -14,11 +14,14 @@
 
   export let title: string;
   export let author: string;
-  export let dashboards: Record<string, DashboardPage> = {};
+  export let pages: Record<string, DashboardPage> = {};
   export let settings: DashboardSettings;
-  export let page: Stream<{ name: string; slug: string }>;
+  export let currentPageName: Stream<string>;
   export let closable: boolean;
 
+  let previousPageName = currentPageName.loop((previous, current) => {
+    return { seed: current, value: previous };
+  }, null);
   let showApp = false;
 
   onMount(() => {
@@ -33,7 +36,6 @@
   }
 
   let showSettings = false;
-  let currentDashboard = Object.keys(dashboards)[0] || undefined;
 
   function string2slug(str: string) {
     let s = str.replace(/^\s+|\s+$/g, ''); // trim
@@ -54,33 +56,40 @@
     return s;
   }
 
-  $: dashboardNames = Object.keys(dashboards);
-  $: dashboardSlugs = [''].concat(dashboardNames.slice(1).map(string2slug));
+  $: pageNames = ['settings'].concat(Object.keys(pages));
+  $: pageSlugs = pageNames.map(string2slug);
 
   // Routing
   onMount(() => {
     try {
       const router = new Routie();
       router.route('settings', () => {
-        showSettings = true;
-        if (currentDashboard) dashboards[currentDashboard].destroy();
-        page.set({ name: 'settings', slug: 'settings' });
+        console.log('param', $currentPageName, pageNames, pageSlugs);
+        currentPageName.set('settings');
       });
-      dashboardSlugs.forEach((slug, i) => {
+      pageSlugs.forEach((slug, i) => {
         router.route(slug, () => {
-          showSettings = false;
-          if (currentDashboard === dashboardNames[i]) return;
-          if (currentDashboard) dashboards[currentDashboard].destroy();
-          currentDashboard = dashboardNames[i];
-          page.set({
-            name: currentDashboard,
-            slug: slug === '' ? string2slug(dashboardNames[0]) : slug, // todo: dashboardNames[i], rather?
-          });
+          if ($currentPageName === pageNames[i]) return;
+          currentPageName.set(pageNames[i]);
         });
-        // route when '$page' is set.
-        page.subscribe((p) => {
-          router.navigate(p.slug);
-        });
+      });
+      // route when '$page' is set.
+      previousPageName.subscribe((name) => {
+        if (name && name !== 'settings') {
+          pages[name].destroy();
+        }
+      });
+      currentPageName.subscribe((name) => {
+        showSettings = name === 'settings';
+        if (showSettings) {
+          return;
+        }
+        let slug: string;
+        const idx = pageNames.findIndex((pageName) => name === pageName);
+        slug = pageSlugs[idx];
+        //
+        //
+        router.navigate(slug);
       });
     } catch (error) {
       // eslint-disable-next-line no-console
@@ -98,10 +107,10 @@
     <div class="app-container" transition:blur={{ amount: 10, duration: closable ? 400 : 0 }}>
       <DashboardHeader
         {title}
-        items={dashboardSlugs.reduce((o, x, i) => ({ ...o, [x]: dashboardNames[i] }), {})}
-        current={currentDashboard}
+        items={pageSlugs.reduce((o, x, i) => ({ ...o, [x]: pageNames[i] }), {})}
         {showSettings}
-        {page}
+        {previousPageName}
+        {currentPageName}
         {closable}
         on:quit={quit}
       />
@@ -109,8 +118,8 @@
       <main class="main-container">
         {#if showSettings}
           <DashboardSettingsComponent {settings} />
-        {:else if currentDashboard}
-          <DashboardPageComponent dashboard={dashboards[currentDashboard]} />
+        {:else if $currentPageName}
+          <DashboardPageComponent dashboard={pages[$currentPageName]} />
         {/if}
       </main>
 

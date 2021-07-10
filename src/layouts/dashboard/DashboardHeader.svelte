@@ -5,20 +5,20 @@
 
   export let title: string;
   export let items: { [slug: string]: string };
-  export let current: string;
+  export let previousPageName: Stream<string>;
   export let closable: boolean;
   export let showSettings = false;
-  export let page: Stream<{ slug: string; name: string }>;
+  export let currentPageName: Stream<string>;
 
   const dispatch = createEventDispatcher();
 
   function toggleSettings() {
     if (showSettings) {
       // window.location.href = window.location.href.split('#')[0] + '#' + $page.slug;
-      page.set({ slug: current, name: items[current] });
+      currentPageName.set($previousPageName);
     } else {
       // window.location.href = window.location.href.split('#')[0] + '#settings';
-      page.set({ slug: 'settings', name: 'settings' });
+      currentPageName.set('settings');
     }
   }
 
@@ -28,9 +28,9 @@
     }, 400);
   }
 
-  export function goToPage(slug: string) {
+  export function goToPage(name: string) {
     return (): void => {
-      page.set({ slug, name: items[slug] });
+      currentPageName.set(name);
     };
   }
 </script>
@@ -44,11 +44,11 @@
       <span class="mx-3 text-lg">{title}</span>
     </a>
     <nav class="flex items-stretch justify-start flex-wrap text-base flex-grow mx-4">
-      {#each Object.entries(items) as [slug, name], index}
+      {#each Object.entries(items).filter((entry) => entry[0] !== 'settings') as [slug, name], index}
         <p
-          class:active={!showSettings && current === name}
+          class:active={!showSettings && $currentPageName === name}
           class="ml-2 mr-5 flex items-center hover:text-black border-solid border-0 border-b-2 border-transparent"
-          on:click={goToPage(slug)}
+          on:click={goToPage(name)}
         >
           {name}
         </p>
