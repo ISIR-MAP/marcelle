@@ -12,6 +12,10 @@ export interface SliderOptions {
   vertical: boolean;
   pips: boolean;
   pipstep: number;
+  springValues: {
+    stiffness: number;
+    damping: number;
+  };
   formatter: (x: unknown) => unknown;
 }
 
@@ -19,38 +23,29 @@ export class Slider extends Component {
   title = 'slider';
 
   $values: Stream<number[]>;
-  $min: Stream<number>;
-  $max: Stream<number>;
-  $step: Stream<number>;
-  range: boolean | 'min' | 'max';
-  float: boolean;
-  vertical: boolean;
-  pips: boolean;
-  pipstep: number;
-  formatter: (x: unknown) => unknown;
-  constructor({
-    values = [0.2],
-    min = 0,
-    max = 1,
-    step = 0.01,
-    range = 'min',
-    float = true,
-    vertical = false,
-    pips = false,
-    pipstep = undefined,
-    formatter = (x) => x,
-  }: Partial<SliderOptions> = {}) {
+  $options: Stream<SliderOptions>;
+  constructor(options: Partial<SliderOptions>) {
     super();
-    this.$values = new Stream(values, true);
-    this.$min = new Stream(min, true);
-    this.$max = new Stream(max, true);
-    this.$step = new Stream(step, true);
-    this.range = range;
-    this.float = float;
-    this.vertical = vertical;
-    this.pips = pips;
-    this.pipstep = pipstep !== undefined ? pipstep : 10 / (max - min);
-    this.formatter = formatter;
+    this.$options = new Stream(
+      {
+        values: [0.2],
+        min: 0,
+        max: 1,
+        step: 0.01,
+        range: 'min',
+        float: true,
+        vertical: false,
+        pips: false,
+        pipstep: undefined,
+        springValues: {
+          stiffness: 0.2,
+          damping: 0.8,
+        },
+        formatter: (x) => x,
+        ...options,
+      } as SliderOptions,
+      true,
+    );
     this.start();
   }
 
@@ -63,15 +58,7 @@ export class Slider extends Component {
       props: {
         title: this.title,
         values: this.$values,
-        min: this.$min,
-        max: this.$max,
-        step: this.$step,
-        range: this.range,
-        float: this.float,
-        vertical: this.vertical,
-        pips: this.pips,
-        pipstep: this.pipstep,
-        formatter: this.formatter,
+        options: this.$options,
       },
     });
   }
