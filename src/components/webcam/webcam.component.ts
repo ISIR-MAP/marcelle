@@ -191,8 +191,8 @@ export class Webcam extends Component {
    * @returns Frame of the webcam actually captured.
    */
   getCapturedFrame() {
-    // if (!this.$ready.value) return null;
-    var frame: {
+    if (!this.$ready.value) return null;
+    let frame: {
       dx: number;
       dy: number;
       dw: number;

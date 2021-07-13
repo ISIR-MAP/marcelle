@@ -64,7 +64,6 @@
     try {
       const router = new Routie();
       router.route('settings', () => {
-        console.log('param', $currentPageName, pageNames, pageSlugs);
         currentPageName.set('settings');
       });
       pageSlugs.forEach((slug, i) => {

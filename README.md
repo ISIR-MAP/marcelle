@@ -91,3 +91,7 @@ To generate the typescript declaration files (useful for the rollup example), ru
 
 - [Teachable Machine](https://teachablemachine.withgoogle.com/)
 - [Wekinator](http://www.wekinator.org/)
+
+## Pip to do
+
+- [ ]: loading the page from a sub-hash prevents $currentPageName to be set, so the the page is not destroyed when routing.
