@@ -30,7 +30,9 @@
 
   export function goToPage(name: string) {
     return (): void => {
-      currentPageName.set(name);
+      if (name !== $currentPageName) {
+        currentPageName.set(name);
+      }
     };
   }
 </script>
