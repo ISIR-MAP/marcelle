@@ -1,4 +1,4 @@
-import { tensor, tensor2d, Tensor2D, TensorLike } from '@tensorflow/tfjs-core';
+import * as tf from '@tensorflow/tfjs';
 import { KNNClassifier as TfjsKNNClassifier } from '@tensorflow-models/knn-classifier';
 import {
   Stream,
@@ -19,7 +19,7 @@ export interface KNNClassifierOptions extends ModelOptions {
   k: number;
 }
 
-export class KNNClassifier extends Model<TensorLike, ClassifierResults> {
+export class KNNClassifier extends Model<tf.TensorLike, ClassifierResults> {
   title = 'KNN classifier';
 
   parameters: {
@@ -39,7 +39,7 @@ export class KNNClassifier extends Model<TensorLike, ClassifierResults> {
 
   @Catch
   async train(
-    dataset: Dataset<TensorLike, string> | ServiceIterable<Instance<TensorLike, string>>,
+    dataset: Dataset<tf.TensorLike, string> | ServiceIterable<Instance<tf.TensorLike, string>>,
   ): Promise<void> {
     const ds = isDataset(dataset) ? dataset.items() : dataset;
     this.labels = Array.from(new Set(await ds.map(({ y }) => y).toArray()));
@@ -51,19 +51,19 @@ export class KNNClassifier extends Model<TensorLike, ClassifierResults> {
     setTimeout(async () => {
       this.classifier.clearAllClasses();
       for await (const { x, y } of ds) {
-        this.classifier.addExample(tensor(x), y);
+        this.classifier.addExample(tf.tensor(x), y);
       }
       this.$training.set({ status: 'success' });
     }, 100);
   }
 
   @Catch
-  async predict(x: TensorLike): Promise<ClassifierResults> {
+  async predict(x: tf.TensorLike): Promise<ClassifierResults> {
     if (!this.classifier || !this.labels || this.labels.length < 1) {
       return { label: undefined, confidences: {} };
     }
     const { label, confidences } = await this.classifier.predictClass(
-      tensor(x),
+      tf.tensor(x),
       this.parameters.k.value,
     );
     return { label, confidences };
@@ -133,9 +133,9 @@ export class KNNClassifier extends Model<TensorLike, ClassifierResults> {
   private async read(s: StoredModel): Promise<void> {
     const dataset = s.metadata.data as Record<string, number[][]>;
     if (!dataset) return;
-    const tensorObj: Record<string, Tensor2D> = {};
+    const tensorObj: Record<string, tf.Tensor2D> = {};
     for (const [key, d] of Object.entries(dataset)) {
-      tensorObj[key] = tensor2d(d);
+      tensorObj[key] = tf.tensor2d(d);
     }
 
     this.labels = s.metadata.labels as string[];

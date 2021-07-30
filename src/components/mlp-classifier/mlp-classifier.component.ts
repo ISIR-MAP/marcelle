@@ -1,11 +1,4 @@
-import { tensor2d, train, Tensor2D, TensorLike, tensor, tidy, keep } from '@tensorflow/tfjs-core';
-import type { TensorLike2D } from '@tensorflow/tfjs-core/dist/types';
-import {
-  loadLayersModel,
-  sequential,
-  layers as tfLayers,
-  Sequential,
-} from '@tensorflow/tfjs-layers';
+import * as tf from '@tensorflow/tfjs';
 import {
   Stream,
   logger,
@@ -19,10 +12,10 @@ import { Dataset, isDataset } from '../../core/dataset';
 import { Catch, TrainingError } from '../../utils/error-handling';
 
 interface TrainingData {
-  training_x: Tensor2D;
-  training_y: Tensor2D;
-  validation_x: Tensor2D;
-  validation_y: Tensor2D;
+  training_x: tf.Tensor2D;
+  training_y: tf.Tensor2D;
+  validation_x: tf.Tensor2D;
+  validation_y: tf.Tensor2D;
 }
 
 function shuffleArray<T>(a: T[]): T[] {
@@ -37,22 +30,22 @@ function shuffleArray<T>(a: T[]): T[] {
 }
 
 async function dataSplit(
-  dataset: ServiceIterable<Instance<TensorLike, string>>,
+  dataset: ServiceIterable<Instance<tf.TensorLike, string>>,
   trainProportion: number,
   labels: string[],
 ): Promise<TrainingData> {
-  const classes: Record<string, TensorLike[]> = labels.reduce((c, l) => ({ ...c, [l]: [] }), {});
+  const classes: Record<string, tf.TensorLike[]> = labels.reduce((c, l) => ({ ...c, [l]: [] }), {});
   for await (const { x, y } of dataset) {
     classes[y].push(x);
   }
 
   let data: TrainingData;
-  tidy(() => {
+  tf.tidy(() => {
     data = {
-      training_x: tensor2d([], [0, 1]),
-      training_y: tensor2d([], [0, labels.length]),
-      validation_x: tensor2d([], [0, 1]),
-      validation_y: tensor2d([], [0, labels.length]),
+      training_x: tf.tensor2d([], [0, 1]),
+      training_y: tf.tensor2d([], [0, labels.length]),
+      validation_x: tf.tensor2d([], [0, 1]),
+      validation_y: tf.tensor2d([], [0, labels.length]),
     };
     for (const label of labels) {
       const instances = classes[label];
@@ -67,21 +60,21 @@ async function dataSplit(
         if (data.training_x.shape[1] === 0) {
           data.training_x.shape[1] = (features as number[][])[0].length;
         }
-        data.training_x = data.training_x.concat(tensor2d(features as TensorLike2D));
-        data.training_y = data.training_y.concat(tensor2d([y]));
+        data.training_x = data.training_x.concat(tf.tensor2d(features as number[][]));
+        data.training_y = data.training_y.concat(tf.tensor2d([y]));
       }
       for (const features of validationInstances) {
         if (data.validation_x.shape[1] === 0) {
           data.validation_x.shape[1] = (features as number[][])[0].length;
         }
-        data.validation_x = data.validation_x.concat(tensor2d(features as TensorLike2D));
-        data.validation_y = data.validation_y.concat(tensor2d([y]));
+        data.validation_x = data.validation_x.concat(tf.tensor2d(features as number[][]));
+        data.validation_y = data.validation_y.concat(tf.tensor2d([y]));
       }
     }
-    keep(data.training_x);
-    keep(data.training_y);
-    keep(data.validation_x);
-    keep(data.validation_y);
+    tf.keep(data.training_x);
+    tf.keep(data.training_y);
+    tf.keep(data.validation_x);
+    tf.keep(data.validation_y);
   });
   return data;
 }
@@ -92,11 +85,11 @@ export interface MLPClassifierOptions extends TFJSBaseModelOptions {
   batchSize: number;
 }
 
-export class MLPClassifier extends TFJSBaseModel<TensorLike, ClassifierResults> {
+export class MLPClassifier extends TFJSBaseModel<tf.TensorLike, ClassifierResults> {
   title = 'MLPClassifier';
 
-  model: Sequential;
-  loadFn = loadLayersModel;
+  model: tf.Sequential;
+  loadFn = tf.loadLayersModel;
 
   parameters: {
     layers: Stream<number[]>;
@@ -120,7 +113,7 @@ export class MLPClassifier extends TFJSBaseModel<TensorLike, ClassifierResults> 
 
   @Catch
   async train(
-    dataset: Dataset<TensorLike, string> | ServiceIterable<Instance<TensorLike, string>>,
+    dataset: Dataset<tf.TensorLike, string> | ServiceIterable<Instance<tf.TensorLike, string>>,
   ): Promise<void> {
     const ds = isDataset(dataset) ? dataset.items() : dataset;
     this.labels = Array.from(new Set(await ds.map(({ y }) => y).toArray()));
@@ -132,10 +125,10 @@ export class MLPClassifier extends TFJSBaseModel<TensorLike, ClassifierResults> 
     }, 100);
   }
 
-  async predict(x: TensorLike): Promise<ClassifierResults> {
+  async predict(x: tf.TensorLike): Promise<ClassifierResults> {
     if (!this.model) return { label: undefined, confidences: {} };
-    return tidy(() => {
-      const pred = this.model.predict(tensor(x)) as Tensor2D;
+    return tf.tidy(() => {
+      const pred = this.model.predict(tf.tensor(x)) as tf.Tensor2D;
       const label = this.labels[pred.gather(0).argMax().arraySync() as number];
       const softmaxes = pred.arraySync()[0];
       const confidences = softmaxes.reduce((c, y, i) => ({ ...c, [this.labels[i]]: y }), {});
@@ -149,25 +142,25 @@ export class MLPClassifier extends TFJSBaseModel<TensorLike, ClassifierResults> 
 
   buildModel(inputDim: number, numClasses: number): void {
     logger.debug('[MLP] Building a model with layers:', this.parameters.layers);
-    this.model = sequential();
+    this.model = tf.sequential();
     for (const [i, units] of this.parameters.layers.value.entries()) {
-      const layerParams: Parameters<typeof tfLayers.dense>[0] = {
+      const layerParams: Parameters<typeof tf.layers.dense>[0] = {
         units,
         activation: 'relu', // potentially add kernel init
       };
       if (i === 0) {
         layerParams.inputDim = inputDim;
       }
-      this.model.add(tfLayers.dense(layerParams));
+      this.model.add(tf.layers.dense(layerParams));
     }
 
     this.model.add(
-      tfLayers.dense({
+      tf.layers.dense({
         units: numClasses,
         activation: 'softmax',
       }),
     );
-    const optimizer = train.adam();
+    const optimizer = tf.train.adam();
     this.model.compile({
       optimizer,
       loss: 'categoricalCrossentropy',

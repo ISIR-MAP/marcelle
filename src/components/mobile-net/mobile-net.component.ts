@@ -1,11 +1,10 @@
+import { io, tidy, GraphModel } from '@tensorflow/tfjs';
 import {
   load as loadMobilenet,
   MobileNet as TfjsMobileNet,
   MobileNetVersion,
   MobileNetAlpha,
 } from '@tensorflow-models/mobilenet';
-import { GraphModel } from '@tensorflow/tfjs-converter';
-import { io, tidy } from '@tensorflow/tfjs-core';
 import { ClassifierResults, logger, Model } from '../../core';
 import { Stream } from '../../core/stream';
 import { Catch, TrainingError } from '../../utils/error-handling';

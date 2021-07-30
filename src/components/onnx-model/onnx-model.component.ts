@@ -1,5 +1,6 @@
 /* eslint-disable no-underscore-dangle */
-import { tidy, browser, reshape, tensor1d } from '@tensorflow/tfjs-core';
+
+import * as tf from '@tensorflow/tfjs';
 import { Tensor as OnnxTensor, InferenceSession } from 'onnxjs';
 import { ClassifierResults, Model, Stream, logger } from '../../core';
 import { Catch, TrainingError } from '../../utils/error-handling';
@@ -84,7 +85,7 @@ export class OnnxModel extends Model<ImageData, ClassifierResults> {
     const tensorOutput = await this.#session.run([inputTensor]);
     const outputData = tensorOutput.values().next().value.data as Float32Array;
     const probabilities = this.applySoftmax
-      ? tensor1d(outputData).softmax().arraySync()
+      ? tf.tensor1d(outputData).softmax().arraySync()
       : Array.from(outputData);
 
     const getLabel = this.labels
@@ -130,18 +131,18 @@ export class OnnxModel extends Model<ImageData, ClassifierResults> {
   }
 
   preprocess(img: ImageData): OnnxTensor {
-    const tfTensor = tidy(() => {
-      let t = browser.fromPixels(img).expandDims(0);
+    const tfTensor = tf.tidy(() => {
+      let t = tf.browser.fromPixels(img).expandDims(0);
       if (this.channelsFirst) {
         t = t.transpose([0, 3, 1, 2]);
       }
       t = t.div(255);
       if (this.channelsFirst) {
-        t = t.sub(reshape(this.normalization.mean, [1, this.normalization.mean.length, 1, 1]));
-        t = t.div(reshape(this.normalization.std, [1, this.normalization.std.length, 1, 1]));
+        t = t.sub(tf.reshape(this.normalization.mean, [1, this.normalization.mean.length, 1, 1]));
+        t = t.div(tf.reshape(this.normalization.std, [1, this.normalization.std.length, 1, 1]));
       } else {
-        t = t.sub(reshape(this.normalization.mean, [1, 1, 1, this.normalization.mean.length]));
-        t = t.div(reshape(this.normalization.std, [1, 1, 1, this.normalization.std.length]));
+        t = t.sub(tf.reshape(this.normalization.mean, [1, 1, 1, this.normalization.mean.length]));
+        t = t.div(tf.reshape(this.normalization.std, [1, 1, 1, this.normalization.std.length]));
       }
 
       return t;

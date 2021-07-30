@@ -1,4 +1,4 @@
-import { io } from '@tensorflow/tfjs-core';
+import { io } from '@tensorflow/tfjs';
 import { logger } from '../logger';
 
 interface SpecificModelArtifacts extends io.ModelArtifacts {

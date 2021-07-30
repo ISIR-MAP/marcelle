@@ -1,6 +1,4 @@
-import { GraphModel, loadGraphModel } from '@tensorflow/tfjs-converter';
-import { io, Tensor, tidy, zeros } from '@tensorflow/tfjs-core';
-import { LayersModel, loadLayersModel } from '@tensorflow/tfjs-layers';
+import * as tf from '@tensorflow/tfjs';
 import { DataStoreBackend } from '../data-store/data-store';
 import { Catch, checkProperty } from '../../utils/error-handling';
 import { saveBlob } from '../../utils/file-io';
@@ -13,14 +11,14 @@ export type TFJSBaseModelOptions = ModelOptions;
 
 export abstract class TFJSBaseModel<InputType, OutputType> extends Model<InputType, OutputType> {
   serviceName = 'tfjs-models';
-  model: LayersModel | GraphModel;
-  loadFn: typeof loadLayersModel | typeof loadGraphModel;
+  model: tf.LayersModel | tf.GraphModel;
+  loadFn: typeof tf.loadLayersModel | typeof tf.loadGraphModel;
   labels?: string[];
 
   @Catch
   protected async warmup(): Promise<void> {
     const inputShape = this.model.inputs[0].shape.map((x) => (x && x > 0 ? x : 1));
-    const warmupResult = this.model.predict(tidy(() => zeros(inputShape))) as Tensor;
+    const warmupResult = this.model.predict(tf.tidy(() => tf.zeros(inputShape))) as tf.Tensor;
     await warmupResult.data();
     warmupResult.dispose();
   }
@@ -52,7 +50,7 @@ export abstract class TFJSBaseModel<InputType, OutputType> extends Model<InputTy
       name,
       files,
       metadata: {
-        tfjsModelFormat: this.model instanceof LayersModel ? 'layers-model' : 'graph-model',
+        tfjsModelFormat: this.model instanceof tf.LayersModel ? 'layers-model' : 'graph-model',
         ...(this.labels && { labels: this.labels }),
         ...metadata,
       },
@@ -69,8 +67,10 @@ export abstract class TFJSBaseModel<InputType, OutputType> extends Model<InputTy
     try {
       const storedModel = await this.loadFromDatastore(idOrName);
       this.loadFn =
-        storedModel.metadata.tfjsModelFormat === 'graph-model' ? loadGraphModel : loadLayersModel;
-      let model: LayersModel | GraphModel;
+        storedModel.metadata.tfjsModelFormat === 'graph-model'
+          ? tf.loadGraphModel
+          : tf.loadLayersModel;
+      let model: tf.LayersModel | tf.GraphModel;
       if (this.dataStore.backend === DataStoreBackend.LocalStorage) {
         model = await this.loadFn(storedModel.files[0][1]);
       } else if (this.dataStore.backend === DataStoreBackend.Remote) {
@@ -117,14 +117,14 @@ export abstract class TFJSBaseModel<InputType, OutputType> extends Model<InputTy
     const name = this.syncModelName || toKebabCase(this.title);
     const meta = {
       type: 'tfjs-model',
-      tfjsModelFormat: this.model instanceof LayersModel ? 'layers-model' : 'graph-model',
+      tfjsModelFormat: this.model instanceof tf.LayersModel ? 'layers-model' : 'graph-model',
       name,
       ...(this.labels && { labels: this.labels }),
       ...metadata,
     };
     const dateSaved = new Date(Date.now());
     await this.model.save(
-      io.withSaveHandler(async (data) => {
+      tf.io.withSaveHandler(async (data) => {
         const weightsManifest = {
           modelTopology: data.modelTopology,
           weightsManifest: [
@@ -160,7 +160,7 @@ export abstract class TFJSBaseModel<InputType, OutputType> extends Model<InputTy
           reject(new Error(`The provided files are not a valid marcelle model ${err}`));
         reader.readAsText(jsonFiles[0]);
       });
-      this.loadFn = meta.tfjsModelFormat === 'graph-model' ? loadGraphModel : loadLayersModel;
+      this.loadFn = meta.tfjsModelFormat === 'graph-model' ? tf.loadGraphModel : tf.loadLayersModel;
       if (jsonFiles.length === 1 && files.length) {
         const model = await this.loadFn(browserFiles([jsonFiles[0], ...weightFiles]));
         if (model) {

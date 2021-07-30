@@ -1,16 +1,4 @@
-import {
-  browser,
-  image as tfImage,
-  tensor,
-  Tensor,
-  Tensor1D,
-  Tensor2D,
-  Tensor3D,
-  TensorLike,
-  tidy,
-} from '@tensorflow/tfjs-core';
-import { loadGraphModel } from '@tensorflow/tfjs-converter';
-import { loadLayersModel } from '@tensorflow/tfjs-layers';
+import * as tf from '@tensorflow/tfjs';
 import { ClassifierResults, TFJSBaseModel, TFJSBaseModelOptions } from '../../core';
 import { Catch, TrainingError } from '../../utils/error-handling';
 import { readJSONFile } from '../../utils/file-io';
@@ -19,7 +7,7 @@ import { browserFiles, http } from '../../core/model/tfjs-io';
 
 export interface InputTypes {
   image: ImageData;
-  generic: TensorLike;
+  generic: tf.TensorLike;
 }
 
 function isInputType<T extends keyof InputTypes>(t: keyof InputTypes, tt: T): t is T {
@@ -28,8 +16,8 @@ function isInputType<T extends keyof InputTypes>(t: keyof InputTypes, tt: T): t 
 
 export interface OutputTypes {
   classification: ClassifierResults;
-  segmentation: ImageData | TensorLike;
-  generic: TensorLike;
+  segmentation: ImageData | tf.TensorLike;
+  generic: tf.TensorLike;
 }
 
 function isOutputType<T extends keyof OutputTypes>(t: keyof OutputTypes, tt: T): t is T {
@@ -87,9 +75,9 @@ export class TFJSModel<
       throw new Error('Model is not loaded');
     }
 
-    const outputs = tidy(() => {
+    const outputs = tf.tidy(() => {
       const inputTensor = this.preprocess(input);
-      return (this.model.predict(inputTensor.expandDims(0)) as unknown as Tensor).gather(0);
+      return (this.model.predict(inputTensor.expandDims(0)) as unknown as tf.Tensor).gather(0);
     });
     const result = await this.postprocess(outputs);
 
@@ -99,35 +87,35 @@ export class TFJSModel<
   }
 
   @Catch
-  preprocess(input: InputTypes[InputType]): Tensor {
+  preprocess(input: InputTypes[InputType]): tf.Tensor {
     if (isInputType(this.inputType, 'image')) {
       return this.preprocessImage(input as InputTypes['image']);
     }
     if (isInputType(this.inputType, 'generic')) {
-      return tensor(input as InputTypes['generic']);
+      return tf.tensor(input as InputTypes['generic']);
     }
     throw new Error('Invalid input data type');
   }
 
   @Catch
-  preprocessImage(img: InputTypes['image']): Tensor3D {
-    return tfImage.resizeBilinear(browser.fromPixels(img), [
+  preprocessImage(img: InputTypes['image']): tf.Tensor3D {
+    return tf.image.resizeBilinear(tf.browser.fromPixels(img), [
       this.inputShape[1],
       this.inputShape[2],
     ]);
   }
 
-  async postprocess(outputs: Tensor): Promise<OutputTypes[TaskType]>;
+  async postprocess(outputs: tf.Tensor): Promise<OutputTypes[TaskType]>;
   @Catch
-  async postprocess(outputs: Tensor): Promise<OutputTypes[keyof OutputTypes]> {
+  async postprocess(outputs: tf.Tensor): Promise<OutputTypes[keyof OutputTypes]> {
     if (isOutputType(this.taskType, 'classification')) {
       // throw new Error('Classifier is not yet implemented');
       const getLabel = this.labels
         ? (index: number) => this.labels[index]
         : (index: number) => index.toString();
 
-      const likeliest = tidy(() => (outputs as Tensor1D).argMax().dataSync()[0]);
-      const confidences = (outputs as Tensor1D)
+      const likeliest = tf.tidy(() => (outputs as tf.Tensor1D).argMax().dataSync()[0]);
+      const confidences = (outputs as tf.Tensor1D)
         .arraySync()
         .reduce(
           (x: Record<string, number>, y: number, i: number) => ({ ...x, [getLabel(i)]: y }),
@@ -140,15 +128,15 @@ export class TFJSModel<
       };
     }
     if (isOutputType(this.taskType, 'segmentation')) {
-      const [width, height] = (outputs as Tensor3D).shape;
+      const [width, height] = (outputs as tf.Tensor3D).shape;
 
       const processedOutputs = this.segmentationOptions.applyArgmax
-        ? tidy(() => outputs.argMax(-1).mul(0.5))
+        ? tf.tidy(() => outputs.argMax(-1).mul(0.5))
         : outputs;
       const mask =
         this.segmentationOptions.output === 'image'
           ? new ImageData(
-              await browser.toPixels(processedOutputs as Tensor2D | Tensor3D),
+              await tf.browser.toPixels(processedOutputs as tf.Tensor2D | tf.Tensor3D),
               width,
               height,
             )
@@ -180,7 +168,7 @@ export class TFJSModel<
       this.$training.set({ status: 'loading' });
       if (files.length) {
         const jsonData = await readJSONFile(jsonFiles[0]);
-        this.loadFn = jsonData.format === 'graph-model' ? loadGraphModel : loadLayersModel;
+        this.loadFn = jsonData.format === 'graph-model' ? tf.loadGraphModel : tf.loadLayersModel;
         this.model = await this.loadFn(browserFiles([jsonFiles[0], ...weightFiles]));
         await this.warmup();
         await this.save(this.id);
@@ -206,7 +194,7 @@ export class TFJSModel<
     });
     try {
       const modelJson = await fetch(url).then((res) => res.json());
-      this.loadFn = modelJson.format === 'graph-model' ? loadGraphModel : loadLayersModel;
+      this.loadFn = modelJson.format === 'graph-model' ? tf.loadGraphModel : tf.loadLayersModel;
       this.model = await this.loadFn(http(url));
       await this.warmup();
       this.$training.set({
