@@ -1,23 +1,7 @@
 import { Component } from '../../core/component';
 import { Stream } from '../../core/stream';
+import { SliderOptions } from '../../ui/components/slider-types';
 import View from './slider.view.svelte';
-
-export interface SliderOptions {
-  values: number[];
-  min: number;
-  max: number;
-  step: number;
-  range: boolean | 'min' | 'max';
-  float: boolean;
-  vertical: boolean;
-  pips: boolean;
-  pipstep: number;
-  springValues: {
-    stiffness: number;
-    damping: number;
-  };
-  formatter: (x: unknown) => unknown;
-}
 
 export class Slider extends Component {
   title = 'slider';

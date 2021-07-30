@@ -2,7 +2,8 @@
   import { Stream } from '../../core/';
   import ViewContainer from '../../core/ViewContainer.svelte';
   import RangeSlider from 'svelte-range-slider-pips';
-  import { SliderOptions } from './slider.component';
+
+  import { SliderOptions } from '../../ui/components/slider-types';
 
   export let title: string;
   export let values: Stream<number[]>;
