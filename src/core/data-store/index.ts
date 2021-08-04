@@ -1,7 +1,7 @@
-import { DataStore } from './data-store';
+import { DataStore, DataStoreOptions } from './data-store';
 
-export function dataStore(location?: string): DataStore {
-  return new DataStore(location);
+export function dataStore(options?: Partial<DataStoreOptions>): DataStore {
+  return new DataStore(options);
 }
 
-export type { DataStore };
+export type { DataStore, DataStoreOptions };

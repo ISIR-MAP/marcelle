@@ -27,6 +27,13 @@ export enum DataStoreBackend {
   Remote,
 }
 
+export interface DataStoreOptions {
+  location: string;
+  socket: {
+    reconnectionAttempts: number;
+    timeout: number; // milliseconds
+  };
+}
 interface User {
   email: string;
 }
@@ -46,16 +53,24 @@ export class DataStore {
   #authenticationPromise: Promise<void>;
   #createService: (name: string) => void = noop;
 
-  constructor(location = 'memory') {
-    this.feathers = feathers();
-    this.location = location;
-    if (isValidUrl(location)) {
-      this.backend = DataStoreBackend.Remote;
-      const socket = io(location, {
-        transports: ['websocket'],
+  constructor(opts?: Partial<DataStoreOptions>) {
+    const options = {
+      location: 'memory',
+      socket: {
         reconnectionAttempts: 3,
+        timeout: 5000,
+      },
+      ...opts,
+    };
+    this.feathers = feathers();
+    this.location = options.location;
+    if (isValidUrl(this.location)) {
+      this.backend = DataStoreBackend.Remote;
+      const socket = io(this.location, {
+        transports: ['websocket'],
+        reconnectionAttempts: options.socket.reconnectionAttempts,
       });
-      this.feathers.configure(socketio(socket, { timeout: 5000 }));
+      this.feathers.configure(socketio(socket, { timeout: options.socket.timeout }));
       this.#initPromise = new Promise((resolve) => {
         this.feathers.io.on('init', ({ auth }: { auth: boolean }) => {
           this.requiresAuth = auth;
@@ -65,7 +80,7 @@ export class DataStore {
           resolve();
         });
       });
-    } else if (location === 'localStorage') {
+    } else if (this.location === 'localStorage') {
       this.backend = DataStoreBackend.LocalStorage;
       const storageService = (name: string) =>
         localStorageService({
@@ -81,7 +96,7 @@ export class DataStore {
       this.#createService = (name: string) => {
         this.feathers.use(`/${name}`, storageService(name));
       };
-    } else if (location === 'memory') {
+    } else if (this.location === 'memory') {
       this.backend = DataStoreBackend.Memory;
       this.#createService = (name: string) => {
         this.feathers.use(
