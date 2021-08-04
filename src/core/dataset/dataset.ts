@@ -87,7 +87,10 @@ export class Dataset<InputType, OutputType> extends Component {
         {
           level: 'instance',
           type: 'created',
-          data: x,
+          data: {
+            ...x,
+            id: x.id || x._id,
+          },
         },
       ]);
     });
