@@ -17,11 +17,9 @@
   export let pages: Record<string, DashboardPage> = {};
   export let settings: DashboardSettings;
   export let currentPageName: Stream<string>;
+  export let previousPageName: Stream<string>;
   export let closable: boolean;
 
-  let previousPageName = currentPageName.loop((previous, current) => {
-    return { seed: current, value: previous };
-  }, null);
   let showApp = false;
 
   onMount(() => {
@@ -74,11 +72,13 @@
       });
       // route when '$page' is set.
       previousPageName.subscribe((name) => {
+        console.log(name);
         if (name && name !== 'settings') {
           pages[name].destroy();
         }
       });
       currentPageName.subscribe((name) => {
+        console.log(name);
         showSettings = name === 'settings';
         if (showSettings) {
           return;

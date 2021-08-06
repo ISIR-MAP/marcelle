@@ -29,7 +29,7 @@ function shuffleArray<T>(a: T[]): T[] {
   return b;
 }
 
-async function dataSplit(
+export async function dataSplit(
   dataset: ServiceIterable<Instance<tf.TensorLike, string>>,
   trainProportion: number,
   labels: string[],
@@ -83,6 +83,7 @@ export interface MLPClassifierOptions extends TFJSBaseModelOptions {
   layers: number[];
   epochs: number;
   batchSize: number;
+  trainingSplit: number;
 }
 
 export class MLPClassifier extends TFJSBaseModel<tf.TensorLike, ClassifierResults> {
@@ -95,12 +96,19 @@ export class MLPClassifier extends TFJSBaseModel<tf.TensorLike, ClassifierResult
     layers: Stream<number[]>;
     epochs: Stream<number>;
     batchSize: Stream<number>;
+    trainingSplit: Stream<number>;
+  };
+
+  private data: {
+    inputDim: number;
+    numClasses: number;
   };
 
   constructor({
     layers = [64, 32],
     epochs = 20,
     batchSize = 8,
+    trainingSplit = 0.75,
     ...rest
   }: Partial<MLPClassifierOptions> = {}) {
     super(rest);
@@ -108,6 +116,7 @@ export class MLPClassifier extends TFJSBaseModel<tf.TensorLike, ClassifierResult
       layers: new Stream(layers, true),
       epochs: new Stream(epochs, true),
       batchSize: new Stream(batchSize, true),
+      trainingSplit: new Stream(trainingSplit),
     };
   }
 
@@ -116,13 +125,25 @@ export class MLPClassifier extends TFJSBaseModel<tf.TensorLike, ClassifierResult
     dataset: Dataset<tf.TensorLike, string> | ServiceIterable<Instance<tf.TensorLike, string>>,
   ): Promise<void> {
     const ds = isDataset(dataset) ? dataset.items() : dataset;
-    this.labels = Array.from(new Set(await ds.map(({ y }) => y).toArray()));
-    this.$training.set({ status: 'start', epochs: this.parameters.epochs.value });
+    const labels = Array.from(new Set(await ds.map(({ y }) => y).toArray()));
     setTimeout(async () => {
-      const data = await dataSplit(ds, 0.75, this.labels);
-      this.buildModel(data.training_x.shape[1], data.training_y.shape[1]);
-      this.fit(data);
+      const data = await dataSplit(ds, this.parameters.trainingSplit.value, labels);
+      await this.trainData(data, labels);
     }, 100);
+  }
+
+  @Catch
+  async trainData(data: TrainingData, labels: string[]): Promise<void> {
+    this.labels = labels;
+    this.$training.set({ status: 'start', epochs: this.parameters.epochs.value });
+    const inputDim = data.training_x.shape[1];
+    const numClasses = data.training_y.shape[1];
+    if (!this.model || this.data?.inputDim !== inputDim || this.data?.numClasses !== numClasses) {
+      this.buildModel(inputDim, numClasses);
+    } else {
+      this.clear();
+    }
+    this.fit(data);
   }
 
   async predict(x: tf.TensorLike): Promise<ClassifierResults> {
@@ -137,7 +158,12 @@ export class MLPClassifier extends TFJSBaseModel<tf.TensorLike, ClassifierResult
   }
 
   clear(): void {
-    delete this.model;
+    // delete this.model;
+    if (this.model) {
+      // set random weights
+      const weights = this.model.getWeights();
+      this.model.setWeights(weights.map((w) => tf.randomUniform(w.shape)));
+    }
   }
 
   buildModel(inputDim: number, numClasses: number): void {
@@ -166,6 +192,11 @@ export class MLPClassifier extends TFJSBaseModel<tf.TensorLike, ClassifierResult
       loss: 'categoricalCrossentropy',
       metrics: ['accuracy'],
     });
+    this.model.setFastWeightInitDuringBuild(true);
+    this.data = {
+      inputDim,
+      numClasses,
+    };
   }
 
   fit(data: TrainingData, epochs = -1): void {

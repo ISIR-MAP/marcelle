@@ -16,6 +16,7 @@ export class Dashboard {
 
   $active = new Stream(false as boolean, true);
   $currentPageName = new Stream('', true);
+  $previousPageName: Stream<string>;
 
   title: string;
   author: string;
@@ -29,11 +30,20 @@ export class Dashboard {
     this.title = title;
     this.author = author;
     this.closable = closable;
+
+    this.$previousPageName = this.$currentPageName.loop((previous, current) => {
+      return { seed: current, value: previous };
+    }, null);
   }
 
   page(name: string, showSidebar?: boolean): DashboardPage {
-    if (!Object.keys(this.pages).includes(name)) {
+    const previousPageNames = Object.keys(this.pages);
+    if (!previousPageNames.includes(name)) {
       this.pages[name] = new DashboardPage(name, showSidebar);
+      // go to the first added page.
+      if (previousPageNames.length === 0) {
+        this.$currentPageName.set(name);
+      }
     }
     return this.pages[name];
   }
@@ -47,6 +57,7 @@ export class Dashboard {
         pages: this.pages,
         settings: this.settings,
         currentPageName: this.$currentPageName,
+        previousPageName: this.$previousPageName,
         closable: this.closable,
       },
     });
