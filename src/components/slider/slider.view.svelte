@@ -22,12 +22,16 @@
     pips={$options.pips}
     pipstep={$options.pipstep}
     formatter={$options.formatter}
-    all="label"
+    all={$options.all}
+    first={$options.first}
+    last={$options.last}
+    rest={$options.rest}
     springValues={$options.springValues}
   />
 </ViewContainer>
 
 <style lang="postcss">
+  /*
   :global(.rangeSlider > .rangeBar),
   :global(.rangeSlider > .rangeHandle > .rangeNub),
   :global(.rangeSlider > .rangeHandle > .rangeFloat) {
@@ -38,4 +42,5 @@
   :global(.rangeSlider > .rangeHandle.active > .rangeFloat) {
     @apply bg-teal-400;
   }
+  */
 </style>

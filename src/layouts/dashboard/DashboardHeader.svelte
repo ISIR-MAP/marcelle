@@ -48,6 +48,7 @@
     <nav class="flex items-stretch justify-start flex-wrap text-base flex-grow mx-4">
       {#each Object.entries(items).filter((entry) => entry[0] !== 'settings') as [slug, name], index}
         <p
+          role="link"
           class:active={!showSettings && $currentPageName === name}
           class="ml-2 mr-5 flex items-center hover:text-black border-solid border-0 border-b-2 border-transparent"
           on:click={goToPage(name)}
