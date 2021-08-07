@@ -1,4 +1,4 @@
-import { MLPClassifier, dataSplit } from './mlp-classifier.component';
+import { MLPClassifier, getTensorFlowTrainingData } from './mlp-classifier.component';
 import type { MLPClassifierOptions } from './mlp-classifier.component';
 
 export function mlpClassifier(options: Partial<MLPClassifierOptions>): MLPClassifier {
@@ -6,4 +6,4 @@ export function mlpClassifier(options: Partial<MLPClassifierOptions>): MLPClassi
 }
 
 export type { MLPClassifierOptions, MLPClassifier };
-export { dataSplit };
+export { getTensorFlowTrainingData };

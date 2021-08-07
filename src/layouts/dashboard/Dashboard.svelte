@@ -72,13 +72,11 @@
       });
       // route when '$page' is set.
       previousPageName.subscribe((name) => {
-        console.log(name);
         if (name && name !== 'settings') {
           pages[name].destroy();
         }
       });
       currentPageName.subscribe((name) => {
-        console.log(name);
         showSettings = name === 'settings';
         if (showSettings) {
           return;

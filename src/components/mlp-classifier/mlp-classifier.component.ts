@@ -12,77 +12,32 @@ import { Dataset, isDataset } from '../../core/dataset';
 import { Catch, TrainingError } from '../../utils/error-handling';
 
 interface TrainingData {
-  training_x: tf.Tensor2D;
-  training_y: tf.Tensor2D;
-  validation_x: tf.Tensor2D;
-  validation_y: tf.Tensor2D;
+  x: tf.Tensor2D;
+  y: tf.Tensor2D;
 }
 
-function shuffleArray<T>(a: T[]): T[] {
-  const b = a.slice();
-  for (let i = b.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * i);
-    const temp = b[i];
-    b[i] = b[j];
-    b[j] = temp;
-  }
-  return b;
-}
-
-async function dataSplit(
+export async function getTensorFlowTrainingData(
   dataset: ServiceIterable<Instance<tf.TensorLike, string>>,
-  trainProportion: number,
   labels: string[],
 ): Promise<TrainingData> {
-  const classes: Record<string, tf.TensorLike[]> = labels.reduce((c, l) => ({ ...c, [l]: [] }), {});
-  for await (const { x, y } of dataset) {
-    classes[y].push(x);
-  }
-
-  let data: TrainingData;
-  tf.tidy(() => {
-    data = {
-      training_x: tf.tensor2d([], [0, 1]),
-      training_y: tf.tensor2d([], [0, labels.length]),
-      validation_x: tf.tensor2d([], [0, 1]),
-      validation_y: tf.tensor2d([], [0, labels.length]),
-    };
-    for (const label of labels) {
-      const instances = classes[label];
-      const numInstances = instances.length;
-      const shuffledInstances = shuffleArray(instances);
-      const thresh = Math.floor(trainProportion * numInstances);
-      const trainingInstances = shuffledInstances.slice(0, thresh);
-      const validationInstances = shuffledInstances.slice(thresh, numInstances);
-      const y = Array(labels.length).fill(0);
-      y[labels.indexOf(label)] = 1;
-      for (const features of trainingInstances) {
-        if (data.training_x.shape[1] === 0) {
-          data.training_x.shape[1] = (features as number[][])[0].length;
-        }
-        data.training_x = data.training_x.concat(tf.tensor2d(features as number[][]));
-        data.training_y = data.training_y.concat(tf.tensor2d([y]));
-      }
-      for (const features of validationInstances) {
-        if (data.validation_x.shape[1] === 0) {
-          data.validation_x.shape[1] = (features as number[][])[0].length;
-        }
-        data.validation_x = data.validation_x.concat(tf.tensor2d(features as number[][]));
-        data.validation_y = data.validation_y.concat(tf.tensor2d([y]));
-      }
-    }
-    tf.keep(data.training_x);
-    tf.keep(data.training_y);
-    tf.keep(data.validation_x);
-    tf.keep(data.validation_y);
-  });
-  return data;
+  const xPromise = dataset
+    .map((it) => it.x)
+    .reduce((acc, x) => acc.concat(tf.tensor2d(x as number[][])), tf.tensor2d([], [0, 1]));
+  const yPromise = dataset
+    .map((it) => {
+      const yProb = new Array(labels.length).fill(0);
+      yProb[labels.indexOf(it.y)] = 1;
+      return yProb;
+    })
+    .reduce((acc, y) => acc.concat(tf.tensor2d([y])), tf.tensor2d([], [0, labels.length]));
+  const [x, y] = await Promise.all([xPromise, yPromise]);
+  return { x, y };
 }
-
 export interface MLPClassifierOptions extends TFJSBaseModelOptions {
   layers: number[];
   epochs: number;
   batchSize: number;
+  validationSplit: number;
 }
 
 export class MLPClassifier extends TFJSBaseModel<tf.TensorLike, ClassifierResults> {
@@ -95,12 +50,14 @@ export class MLPClassifier extends TFJSBaseModel<tf.TensorLike, ClassifierResult
     layers: Stream<number[]>;
     epochs: Stream<number>;
     batchSize: Stream<number>;
+    validationSplit: Stream<number>;
   };
 
   constructor({
     layers = [64, 32],
     epochs = 20,
     batchSize = 8,
+    validationSplit = 0.25,
     ...rest
   }: Partial<MLPClassifierOptions> = {}) {
     super(rest);
@@ -108,6 +65,7 @@ export class MLPClassifier extends TFJSBaseModel<tf.TensorLike, ClassifierResult
       layers: new Stream(layers, true),
       epochs: new Stream(epochs, true),
       batchSize: new Stream(batchSize, true),
+      validationSplit: new Stream(validationSplit),
     };
   }
 
@@ -116,13 +74,21 @@ export class MLPClassifier extends TFJSBaseModel<tf.TensorLike, ClassifierResult
     dataset: Dataset<tf.TensorLike, string> | ServiceIterable<Instance<tf.TensorLike, string>>,
   ): Promise<void> {
     const ds = isDataset(dataset) ? dataset.items() : dataset;
-    this.labels = Array.from(new Set(await ds.map(({ y }) => y).toArray()));
-    this.$training.set({ status: 'start', epochs: this.parameters.epochs.value });
+    const labels = Array.from(new Set(await ds.map(({ y }) => y).toArray()));
     setTimeout(async () => {
-      const data = await dataSplit(ds, 0.75, this.labels);
-      this.buildModel(data.training_x.shape[1], data.training_y.shape[1]);
-      this.fit(data);
+      const data = await getTensorFlowTrainingData(ds, labels);
+      await this.trainData(data, labels);
     }, 100);
+  }
+
+  @Catch
+  async trainData(data: TrainingData, labels: string[]): Promise<void> {
+    this.labels = labels;
+    this.$training.set({ status: 'start', epochs: this.parameters.epochs.value });
+    const inputDim = data.x.shape[1];
+    const numClasses = data.y.shape[1];
+    this.buildModel(inputDim, numClasses);
+    this.fit(data);
   }
 
   async predict(x: tf.TensorLike): Promise<ClassifierResults> {
@@ -166,16 +132,17 @@ export class MLPClassifier extends TFJSBaseModel<tf.TensorLike, ClassifierResult
       loss: 'categoricalCrossentropy',
       metrics: ['accuracy'],
     });
+    this.model.setFastWeightInitDuringBuild(true);
   }
 
   fit(data: TrainingData, epochs = -1): void {
     const numEpochs = epochs > 0 ? epochs : this.parameters.epochs.value;
     this.model
-      .fit(data.training_x, data.training_y, {
+      .fit(data.x, data.y, {
         batchSize: this.parameters.batchSize.value,
-        validationData: [data.validation_x, data.validation_y],
         epochs: numEpochs,
         shuffle: true,
+        validationSplit: this.parameters.validationSplit.value,
         callbacks: {
           onEpochEnd: (epoch, logs) => {
             this.$training.set({
@@ -209,10 +176,8 @@ export class MLPClassifier extends TFJSBaseModel<tf.TensorLike, ClassifierResult
         throw new TrainingError(error.message);
       })
       .finally(() => {
-        data.training_x.dispose();
-        data.training_y.dispose();
-        data.validation_x.dispose();
-        data.validation_y.dispose();
+        data.x.dispose();
+        data.y.dispose();
       });
   }
 }
