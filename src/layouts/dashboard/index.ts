@@ -1,6 +1,6 @@
 import { DashboardPage } from './dashboard_page';
 import DashboardComponent from './Dashboard.svelte';
-import { Stream } from '../../core';
+import { logger, Stream } from '../../core';
 import { DashboardSettings } from './dashboard_settings';
 
 export interface DashboardOptions {
@@ -15,7 +15,7 @@ export class Dashboard {
   settings = new DashboardSettings();
 
   $active = new Stream(false as boolean, true);
-  $currentPageName = new Stream('', true);
+  $currentPageName: Stream<string>;
   $previousPageName: Stream<string>;
 
   title: string;
@@ -31,9 +31,16 @@ export class Dashboard {
     this.author = author;
     this.closable = closable;
 
-    this.$previousPageName = this.$currentPageName.loop((previous, current) => {
-      return { seed: current, value: previous };
-    }, null);
+    this.$currentPageName = new Stream('', true).tap((name) => {
+      logger.log(`current: ${name}`);
+    });
+    this.$previousPageName = this.$currentPageName
+      .loop((previous, current) => {
+        return { seed: current, value: previous };
+      }, null)
+      .tap((name) => {
+        logger.log(`previous: ${name}`);
+      });
   }
 
   page(name: string, showSidebar?: boolean): DashboardPage {
