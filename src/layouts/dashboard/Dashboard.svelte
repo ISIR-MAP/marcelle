@@ -72,7 +72,7 @@
       });
       // route when '$page' is set.
       previousPageName.subscribe((name) => {
-        if (name && name !== 'settings') {
+        if (name && name !== previousPageName.value && name !== 'settings') {
           pages[name].destroy();
         }
       });

@@ -34,13 +34,9 @@ export class Dashboard {
     this.$currentPageName = new Stream('', true).tap((name) => {
       logger.log(`current: ${name}`);
     });
-    this.$previousPageName = this.$currentPageName
-      .loop((previous, current) => {
-        return { seed: current, value: previous };
-      }, null)
-      .tap((name) => {
-        logger.log(`previous: ${name}`);
-      });
+    this.$previousPageName = this.$currentPageName.loop((previous, current) => {
+      return { seed: current, value: previous };
+    }, null);
   }
 
   page(name: string, showSidebar?: boolean): DashboardPage {
