@@ -72,7 +72,8 @@
       });
       // route when '$page' is set.
       previousPageName.subscribe((name) => {
-        if (name && name !== previousPageName.value && name !== 'settings') {
+        const shouldNotDestroyPages = [currentPageName.value, 'settings'];
+        if (name && !shouldNotDestroyPages.includes(name)) {
           pages[name].destroy();
         }
       });
